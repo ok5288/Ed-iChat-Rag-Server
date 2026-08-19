@@ -1,0 +1,21 @@
+# FastAPI 和服务器
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+
+# LangChain
+langchain==0.0.350
+langchain-community==0.0.10
+langchain-google-genai==0.0.6
+
+# 向量存储
+pymilvus==2.4.0
+
+# 文档处理
+PyPDF2==3.0.1
+python-docx==1.1.0
+unstructured==0.10.30
+markdown==3.5.1
+
+# 工具
+python-dotenv==1.0.0
