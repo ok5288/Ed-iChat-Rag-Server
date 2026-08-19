@@ -7,20 +7,14 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# LangChain 导入
+# LangChain 导入（精简）
 from langchain.vectorstores import Milvus
 from langchain.embeddings import GoogleGenerativeAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import (
-    PyPDFLoader,
-    TextLoader,
-    Docx2txtLoader,
-    UnstructuredMarkdownLoader
-)
 from langchain.docstore.document import Document
 
 # 初始化 FastAPI 应用
-app = FastAPI(title="ed-iChat RAG Server", version="1.0.0")
+app = FastAPI(title="Ed-iChat RAG Server", version="1.0.0")
 
 # 添加 CORS 中间件
 app.add_middleware(
@@ -39,7 +33,7 @@ MILVUS_PASSWORD = os.getenv("MILVUS_PASSWORD", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 DEFAULT_TOP_K = int(os.getenv("DEFAULT_RAG_TOP_K", "10"))
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_RAG_CHUNK_SIZE", "512"))
-DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_RAG_CHUNK_OVERLAP", "50"))
+DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_RAG_CHUNK_OVERLAP", "80"))
 
 # 全局变量存储向量存储实例
 _vectorstore = None
@@ -143,49 +137,28 @@ async def upload_document(
     file: UploadFile = File(...),
     namespace: str = "default"
 ):
-    """上传并处理文档"""
+    """上传并处理文档（仅支持纯文本）"""
     try:
         # 读取文件内容
         content = await file.read()
+        text_content = content.decode("utf-8")
         
-        # 创建临时文件
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file.filename) as tmp:
-            tmp.write(content)
-            tmp_path = tmp.name
-        
-        # 根据文件类型选择加载器
-        loader = None
-        if file.filename.endswith(".pdf"):
-            loader = PyPDFLoader(tmp_path)
-        elif file.filename.endswith(".docx"):
-            loader = Docx2txtLoader(tmp_path)
-        elif file.filename.endswith(".md"):
-            loader = UnstructuredMarkdownLoader(tmp_path)
-        elif file.filename.endswith(".txt"):
-            loader = TextLoader(tmp_path)
-        
-        if loader is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type: {file.filename}"
-            )
-        
-        # 加载文档
-        documents = loader.load()
+        # 创建文档对象
+        doc = Document(
+            page_content=text_content,
+            metadata={"source": file.filename}
+        )
         
         # 分割文档
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=DEFAULT_CHUNK_SIZE,
             chunk_overlap=DEFAULT_CHUNK_OVERLAP
         )
-        split_documents = text_splitter.split_documents(documents)
+        split_documents = text_splitter.split_documents([doc])
         
         # 添加到向量存储
         vs = get_vectorstore(namespace)
         vs.add_documents(split_documents)
-        
-        # 清理临时文件
-        os.unlink(tmp_path)
         
         return {
             "status": "success",
@@ -201,7 +174,6 @@ async def clear_namespace(namespace: str = "default"):
     """清空命名空间"""
     try:
         vs = get_vectorstore(namespace)
-        # 注意：Milvus 的 drop_collection 需要特殊权限
         return {
             "status": "success",
             "message": f"Namespace {namespace} cleared",
@@ -215,7 +187,6 @@ async def get_stats(namespace: str = "default"):
     """获取统计信息"""
     try:
         vs = get_vectorstore(namespace)
-        # 获取集合信息
         stats = vs.col.num_entities
         return {
             "status": "success",
