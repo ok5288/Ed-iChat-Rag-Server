@@ -1,19 +1,11 @@
+# 直接覆盖文件，只保留包名
 cat > requirements.txt << 'EOF'
-# FastAPI 和服务器
 fastapi==0.104.1
 uvicorn==0.24.0
 python-multipart==0.0.6
-
-# LangChain 核心（最小化）
 langchain==0.0.350
 langchain-core==0.1.0
-
-# 向量存储（只保留 Milvus）
 pymilvus==2.4.0
-
-# Embeddings（只保留 Gemini）
 google-generativeai==0.3.2
-
-# 工具
 python-dotenv==1.0.0
 EOF
