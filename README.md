@@ -19,6 +19,12 @@ Ed-iChat-Rag-Server
 - `GET /stats` - 获取统计信息
 
 ## 部署到 Vercel
+<div align="center">
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/neo-chat-rag-server&env=MILVUS_HOST,MILVUS_PORT,MILVUS_USER,MILVUS_PASSWORD,GEMINI_API_KEY,DEFAULT_RAG_TOP_K,DEFAULT_RAG_CHUNK_SIZE,DEFAULT_RAG_CHUNK_OVERLAP&project-name=neo-chat-rag-server&repository-name=neo-chat-rag-server)
+
+</div>
+
 
 ```bash
 # 安装 Vercel CLI
