@@ -1,20 +1,29 @@
 # main.py
 import os
-import json
-import tempfile
+import sys
+import logging
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# LangChain 导入（精简）
-from langchain.vectorstores import Milvus
-from langchain.embeddings import GoogleGenerativeAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.docstore.document import Document
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 尝试导入依赖
+try:
+    from langchain.vectorstores import Milvus
+    from langchain.embeddings import GoogleGenerativeAIEmbeddings
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from langchain.docstore.document import Document
+    IMPORTS_OK = True
+except ImportError as e:
+    logger.error(f"Import error: {e}")
+    IMPORTS_OK = False
 
 # 初始化 FastAPI 应用
-app = FastAPI(title="Ed-iChat RAG Server", version="1.0.0")
+app = FastAPI(title="ed-iChat RAG Server", version="1.0.0")
 
 # 添加 CORS 中间件
 app.add_middleware(
@@ -35,7 +44,7 @@ DEFAULT_TOP_K = int(os.getenv("DEFAULT_RAG_TOP_K", "10"))
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_RAG_CHUNK_SIZE", "512"))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_RAG_CHUNK_OVERLAP", "80"))
 
-# 全局变量存储向量存储实例
+# 全局变量
 _vectorstore = None
 
 class QueryRequest(BaseModel):
@@ -57,8 +66,15 @@ def get_vectorstore(namespace: str = "default"):
     """获取或创建向量存储实例"""
     global _vectorstore
     
+    if not IMPORTS_OK:
+        raise ImportError("Failed to import required packages")
+    
     if _vectorstore is None:
         try:
+            logger.info("Initializing Milvus connection...")
+            logger.info(f"MILVUS_HOST: {MILVUS_HOST[:20]}...")
+            logger.info(f"GEMINI_API_KEY: {'*' * 10}{GEMINI_API_KEY[-4:] if GEMINI_API_KEY else 'NOT SET'}")
+            
             # 初始化 Gemini Embeddings
             embeddings = GoogleGenerativeAIEmbeddings(
                 model="models/embedding-001",
@@ -76,7 +92,9 @@ def get_vectorstore(namespace: str = "default"):
                 },
                 collection_name=f"ed_ichat_{namespace}"
             )
+            logger.info("Milvus connection established successfully")
         except Exception as e:
+            logger.error(f"Failed to connect to Milvus: {e}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to connect to Milvus: {str(e)}"
@@ -87,21 +105,29 @@ def get_vectorstore(namespace: str = "default"):
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """健康检查端点"""
-    milvus_connected = False
-    gemini_configured = bool(GEMINI_API_KEY and MILVUS_HOST)
-    
     try:
+        milvus_connected = False
+        gemini_configured = bool(GEMINI_API_KEY and MILVUS_HOST)
+        
+        logger.info(f"Health check - Gemimi configured: {gemini_configured}")
+        
         if gemini_configured:
             vs = get_vectorstore()
             milvus_connected = True
-    except:
-        pass
-    
-    return HealthResponse(
-        status="healthy" if milvus_connected else "partial",
-        milvus_connected=milvus_connected,
-        gemini_configured=gemini_configured
-    )
+            logger.info("Health check passed")
+        
+        return HealthResponse(
+            status="healthy" if milvus_connected else "partial",
+            milvus_connected=milvus_connected,
+            gemini_configured=gemini_configured
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return HealthResponse(
+            status="error",
+            milvus_connected=False,
+            gemini_configured=bool(GEMINI_API_KEY and MILVUS_HOST)
+        )
 
 @app.post("/embed", response_model=QueryResponse)
 async def embed_documents(request: QueryRequest):
@@ -109,13 +135,11 @@ async def embed_documents(request: QueryRequest):
     try:
         vs = get_vectorstore(request.namespace)
         
-        # 执行相似度搜索
         results = vs.similarity_search_with_score(
             request.query,
             k=request.top_k
         )
         
-        # 格式化结果
         formatted_results = []
         for doc, score in results:
             formatted_results.append({
@@ -130,6 +154,7 @@ async def embed_documents(request: QueryRequest):
             top_k=request.top_k
         )
     except Exception as e:
+        logger.error(f"Embed error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/upload")
@@ -137,26 +162,22 @@ async def upload_document(
     file: UploadFile = File(...),
     namespace: str = "default"
 ):
-    """上传并处理文档（仅支持纯文本）"""
+    """上传并处理文档"""
     try:
-        # 读取文件内容
         content = await file.read()
         text_content = content.decode("utf-8")
         
-        # 创建文档对象
         doc = Document(
             page_content=text_content,
             metadata={"source": file.filename}
         )
         
-        # 分割文档
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=DEFAULT_CHUNK_SIZE,
             chunk_overlap=DEFAULT_CHUNK_OVERLAP
         )
         split_documents = text_splitter.split_documents([doc])
         
-        # 添加到向量存储
         vs = get_vectorstore(namespace)
         vs.add_documents(split_documents)
         
@@ -167,19 +188,7 @@ async def upload_document(
             "namespace": namespace
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/clear")
-async def clear_namespace(namespace: str = "default"):
-    """清空命名空间"""
-    try:
-        vs = get_vectorstore(namespace)
-        return {
-            "status": "success",
-            "message": f"Namespace {namespace} cleared",
-            "namespace": namespace
-        }
-    except Exception as e:
+        logger.error(f"Upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/stats")
@@ -194,6 +203,7 @@ async def get_stats(namespace: str = "default"):
             "total_documents": stats
         }
     except Exception as e:
+        logger.error(f"Stats error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
