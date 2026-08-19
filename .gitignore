@@ -1,0 +1,33 @@
+# 创建 .gitignore 文件
+cat > .gitignore << 'EOF'
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# 环境变量（不要提交真实密钥）
+.env
+.env.local
+.env.production
+
+# 日志
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel
+EOF
