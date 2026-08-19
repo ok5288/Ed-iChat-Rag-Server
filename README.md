@@ -22,7 +22,7 @@ Ed-iChat-Rag-Server
 ### 一键部署到Vercel
 <div align="left">
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ok5288/Ed-iChat-rag-server&env=MILVUS_HOST,MILVUS_PORT,MILVUS_USER,MILVUS_PASSWORD,GEMINI_API_KEY,DEFAULT_RAG_TOP_K,DEFAULT_RAG_CHUNK_SIZE,DEFAULT_RAG_CHUNK_OVERLAP&project-name=Ed-ichat-rag-server&repository-name=neo-chat-rag-server)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ok5288/ed-iChat-rag-server&env=MILVUS_HOST,MILVUS_PORT,MILVUS_USER,MILVUS_PASSWORD,GEMINI_API_KEY,DEFAULT_RAG_TOP_K,DEFAULT_RAG_CHUNK_SIZE,DEFAULT_RAG_CHUNK_OVERLAP&project-name=ed-ichat-rag-server&repository-name=ed-ichat-rag-server)
 
 </div>
 
