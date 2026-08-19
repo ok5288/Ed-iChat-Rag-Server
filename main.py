@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from langchain.vectorstores import Milvus
-    from langchain.embeddings import GoogleGenerativeAIEmbeddings
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
     from langchain.text_splitter import RecursiveCharacterTextSplitter
     from langchain.docstore.document import Document
     IMPORTS_OK = True
